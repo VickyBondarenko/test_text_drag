@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Highlight & Drag</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #inputArea {
+            margin-bottom: 10px;
+        }
+
+        #textOutput {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            border: 1px solid #000;
+            padding: 10px;
+            min-height: 40px;
+            position: relative;
+        }
+
+        .letter {
+            display: inline-block;
+            padding: 5px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .selected {
+            background-color: yellow;
+        }
+
+        .dragging {
+            opacity: 0.5;
+        }
+
+        .selection-box {
+            position: absolute;
+            border: 1px dashed #000;
+            background: rgba(0, 0, 255, 0.2);
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="inputArea">
+        <input type="text" id="textInput" placeholder="Enter text here" onkeydown="handleKeyDown(event)">
+        <button onclick="displayText()">Submit</button>
+    </div>
+    <div id="textOutput"></div>
+
+    <script>
+        let selectionBox = null;
+        let startX = 0, startY = 0;
+
+        function displayText() {
+            const input = document.getElementById("textInput").value;
+            const output = document.getElementById("textOutput");
+            output.innerHTML = "";
+            input.split('').forEach((char, index) => {
+                let span = document.createElement("span");
+                span.classList.add("letter");
+                span.textContent = char;
+                span.draggable = false;
+                span.dataset.index = index;
+                span.addEventListener("click", toggleSelection);
+                span.addEventListener("dragstart", dragStart);
+                span.addEventListener("dragover", dragOver);
+                span.addEventListener("drop", drop);
+                output.appendChild(span);
+            });
+            output.addEventListener("mousedown", startSelection);
+            document.addEventListener("mouseup", endSelection);
+            document.addEventListener("mousemove", updateSelection);
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === "Enter") {
+                displayText();
+            }
+        }
+
+        function toggleSelection(event) {
+            if (event.ctrlKey) {
+                event.target.classList.toggle("selected");
+                event.target.draggable = event.target.classList.contains("selected");
+            }
+        }
+
+        function dragStart(event) {
+            if (!event.target.classList.contains("selected")) {
+                event.preventDefault();
+                return;
+            }
+            event.dataTransfer.setData("text", event.target.dataset.index);
+        }
+
+        function dragOver(event) {
+            event.preventDefault();
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            let fromIndex = event.dataTransfer.getData("text");
+            let toIndex = event.target.dataset.index;
+
+            if (fromIndex !== toIndex && event.target.classList.contains("letter")) {
+                let letters = document.querySelectorAll(".letter");
+                let fromLetter = letters[fromIndex];
+                let toLetter = letters[toIndex];
+
+
+                let tempText = fromLetter.textContent;
+                fromLetter.textContent = toLetter.textContent;
+                toLetter.textContent = tempText;
+
+
+                let fromSelected = fromLetter.classList.contains("selected");
+                let toSelected = toLetter.classList.contains("selected");
+
+                fromLetter.classList.toggle("selected", toSelected);
+                toLetter.classList.toggle("selected", fromSelected);
+
+                fromLetter.draggable = fromLetter.classList.contains("selected");
+                toLetter.draggable = toLetter.classList.contains("selected");
+            }
+        }
+
+        function startSelection(event) {
+            const output = document.getElementById("textOutput");
+            if (event.target !== output) return;
+
+            startX = event.clientX;
+            startY = event.clientY;
+
+            selectionBox = document.createElement("div");
+            selectionBox.classList.add("selection-box");
+            selectionBox.style.left = `${startX}px`;
+            selectionBox.style.top = `${startY}px`;
+            document.body.appendChild(selectionBox);
+        }
+
+        function updateSelection(event) {
+            if (!selectionBox) return;
+
+            let x = Math.min(event.clientX, startX);
+            let y = Math.min(event.clientY, startY);
+            let width = Math.abs(event.clientX - startX);
+            let height = Math.abs(event.clientY - startY);
+
+            selectionBox.style.left = `${x}px`;
+            selectionBox.style.top = `${y}px`;
+            selectionBox.style.width = `${width}px`;
+            selectionBox.style.height = `${height}px`;
+        }
+
+        function endSelection(event) {
+            if (!selectionBox) return;
+
+            let box = selectionBox.getBoundingClientRect();
+            document.querySelectorAll(".letter").forEach(letter => {
+                let letterBox = letter.getBoundingClientRect();
+                if (letterBox.left < box.right && letterBox.right > box.left &&
+                    letterBox.top < box.bottom && letterBox.bottom > box.top) {
+                    letter.classList.add("selected");
+                    letter.draggable = true;
+                }
+            });
+
+            document.body.removeChild(selectionBox);
+            selectionBox = null;
+        }
+    </script>
+</body>
+
+</html>
